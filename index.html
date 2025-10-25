@@ -9,8 +9,8 @@
 <style>
   :root{--bg:#f6f8fb;--card:#fff;--accent:#2b7cff;--muted:#666;}
   *{box-sizing:border-box}
-  body{font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial; margin:0; background:var(--bg); color:#111;}
-  header{background:var(--accent); color:#fff; padding:14px 16px;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial;margin:0;background:var(--bg);color:#111;}
+  header{background:var(--accent);color:#fff;padding:14px 16px;}
   header h1{margin:0;font-size:18px;}
   .app{display:flex;flex-direction:column;height:calc(100vh - 56px);}
   .main{display:flex;flex:1;gap:12px;padding:12px;}
@@ -24,7 +24,7 @@
   button{background:var(--accent);color:#fff;border:none;padding:8px 10px;border-radius:8px;font-weight:600;cursor:pointer;}
   button.ghost{background:#eef4ff;color:var(--accent);font-weight:600;border:1px solid rgba(43,124,255,0.12);}
   label{display:block;font-size:13px;margin-top:8px;color:var(--muted)}
-  input[type="text"], textarea, select{width:100%;padding:8px;border-radius:8px;border:1px solid #e0e6ef;margin-top:6px;font-size:14px}
+  input[type="text"],textarea,select{width:100%;padding:8px;border-radius:8px;border:1px solid #e0e6ef;margin-top:6px;font-size:14px}
   textarea{resize:vertical}
   .detail{overflow:auto;flex:1}
   .prompt{background:#f2f6ff;padding:10px;border-radius:8px;margin-bottom:8px}
@@ -35,7 +35,7 @@
   #modalInner{background:#fff;border-radius:12px;padding:12px;max-width:680px;width:100%;box-shadow:0 8px 24px rgba(0,0,0,0.3)}
   .modal-row{margin-top:8px}
   .q-prompt{white-space:pre-wrap;background:#fafcff;padding:10px;border-radius:8px;margin-bottom:6px}
-  @media (max-width:720px){ .main{flex-direction:column;padding:10px} .left{max-width:none} }
+  @media(max-width:720px){.main{flex-direction:column;padding:10px}.left{max-width:none}}
 </style>
 </head>
 <body>
@@ -54,7 +54,7 @@
 
     <div class="col right">
       <div id="detailArea" class="detail">
-        <div class="prompt"><strong>使用說明：</strong> 點選左側卡片檢視與管理。建立或新增例句後會自動儲存。測驗題型會隨機從「單字→解釋」「解釋→單字」「例句遮蔽」出題。例句遮蔽會把指定位置替換為 <code>***</code>，請完整輸入該位置單字（必須完全相同）。答對次數 >= 5 會自動刪除該卡。</div>
+        <div class="prompt"><strong>使用說明：</strong> 點選左側卡片檢視與管理。建立或新增例句後會自動儲存。測驗題型隨機：單字→解釋、解釋→單字、例句遮蔽。答錯會扣 1 分（可為負），答對達 5 次會刪除該卡。</div>
         <div id="detailContent"></div>
       </div>
       <div style="margin-top:10px" class="center">
@@ -65,260 +65,146 @@
     </div>
   </div>
 
-  <!-- Modal for general small dialogs (reuse) -->
-  <div id="modal">
-    <div id="modalInner">
-      <div id="modalBody"></div>
-      <div style="text-align:right;margin-top:8px">
-        <button id="modalCancel" class="ghost">取消</button>
-        <button id="modalOk">確認</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Persistent Test Modal (fix for single-question bug) -->
+  <!-- 測驗 modal -->
   <div id="testModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;padding:16px">
     <div style="background:#fff;border-radius:12px;padding:12px;max-width:680px;width:100%;box-shadow:0 8px 24px rgba(0,0,0,0.3)">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <strong>測驗模式（按「結束測驗」離開）</strong>
+        <strong>測驗模式</strong>
         <button id="endTestBtn" class="ghost">結束測驗</button>
       </div>
       <div class="q-prompt" id="qPrompt">題目會出現在這裡</div>
-      <div>
-        <input id="qAnswer" type="text" placeholder="輸入答案後按提交" />
-      </div>
+      <input id="qAnswer" type="text" placeholder="輸入答案後按提交" />
       <div style="margin-top:8px;display:flex;gap:8px">
         <button id="submitAnswer">提交答案</button>
-        <button id="skipAnswer" class="ghost">跳過（顯示答案）</button>
+        <button id="skipAnswer" class="ghost">跳過</button>
       </div>
-      <div style="margin-top:8px;color:var(--muted)" id="testStatus"></div>
+      <div style="margin-top:8px;color:#666" id="testStatus"></div>
     </div>
   </div>
 
-  <footer>加入主畫面可離線使用。資料儲存在你的裝置（localStorage）。</footer>
+  <footer>加入主畫面可離線使用。資料儲存在你的裝置。</footer>
 </div>
 
 <script>
-const STORAGE_KEY = 'flashcards_v1';
-const MAX_CORRECT = 5;
-
-function loadCards(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') }catch(e){return []} }
-function saveCards(cards){ localStorage.setItem(STORAGE_KEY, JSON.stringify(cards)) }
-
-let cards = loadCards();
-let selectedIndex = null;
-const listEl = document.getElementById('cardsList');
-const detailContent = document.getElementById('detailContent');
-const status = document.getElementById('status');
-
+const STORAGE_KEY='flashcards_v1';
+const MAX_CORRECT=5;
+let cards=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');
+function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(cards));}
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+const listEl=document.getElementById('cardsList');
+const detailContent=document.getElementById('detailContent');
+const status=document.getElementById('status');
+let selected=null;
 function refresh(){
-  listEl.innerHTML = '';
+  listEl.innerHTML='';
   cards.forEach((c,i)=>{
-    const el = document.createElement('div');
-    el.className = 'card-item';
-    el.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${escapeHtml(c.word)}</strong><div class="small">${escapeHtml(c.meaning)}</div></div><div style="text-align:right;color:var(--muted)">${c.correct||0}</div></div>`;
-    el.onclick = ()=>{ selectedIndex = i; showDetail(c); highlightSelected(); }
+    const el=document.createElement('div');
+    el.className='card-item';
+    el.innerHTML=`<div><strong>${escapeHtml(c.word)}</strong> (${c.correct||0})<div class="small">${escapeHtml(c.meaning)}</div></div>`;
+    el.onclick=()=>{selected=i;showDetail(c);highlight();};
     listEl.appendChild(el);
   });
-  status.textContent = `已儲存 ${cards.length} 張卡片。`;
-  saveCards(cards);
-  if(selectedIndex !== null && selectedIndex >= cards.length) selectedIndex = null;
-  if(selectedIndex !== null) highlightSelected();
+  status.textContent=`共有 ${cards.length} 張卡`;
+  save();
 }
-
-function highlightSelected(){
-  Array.from(listEl.children).forEach((el,idx)=> el.style.border = (idx===selectedIndex? '1px solid var(--accent)' : '1px solid rgba(0,0,0,0.04)') );
-}
-
+function highlight(){Array.from(listEl.children).forEach((el,i)=>el.style.border=i===selected?'1px solid var(--accent)':'1px solid rgba(0,0,0,0.04)');}
 function showDetail(c){
-  let html = `<h3>${escapeHtml(c.word)} <small style="color:var(--muted)">(答對:${c.correct||0})</small></h3>`;
-  html += `<p><strong>解釋：</strong> ${escapeHtml(c.meaning)}</p>`;
-  html += `<p><strong>例句：</strong></p>`;
-  if(c.sentences && c.sentences.length){
-    html += '<ol>';
-    c.sentences.forEach(s => { html += `<li>(pos=${s.pos}) ${escapeHtml(s.text)}</li>` });
-    html += '</ol>';
-  } else html += '<p style="color:var(--muted)">（無）</p>';
-  html += `<div style="margin-top:8px"><button id="btnDelete" class="ghost">刪除此卡</button></div>`;
-  detailContent.innerHTML = html;
-  document.getElementById('btnDelete').onclick = ()=>{ if(confirm('確定要刪除？')){ cards.splice(selectedIndex,1); selectedIndex=null; refresh(); detailContent.innerHTML=''; } }
+  let html=`<h3>${escapeHtml(c.word)} <small>(答對:${c.correct||0})</small></h3>`;
+  html+=`<p><strong>解釋：</strong>${escapeHtml(c.meaning)}</p>`;
+  if(c.sentences?.length){
+    html+='<ol>'+c.sentences.map(s=>`<li>${escapeHtml(s.text)} (pos=${s.pos})</li>`).join('')+'</ol>';
+  }else html+='<p style="color:#888">無例句</p>';
+  html+=`<button id="delBtn" class="ghost">刪除此卡</button>`;
+  detailContent.innerHTML=html;
+  document.getElementById('delBtn').onclick=()=>{if(confirm('確定刪除？')){cards.splice(selected,1);selected=null;refresh();detailContent.innerHTML='';}};
 }
 
-function modalShow(html, okText='確認', onOk=null){
-  const modal = document.getElementById('modal');
-  document.getElementById('modalBody').innerHTML = html;
-  document.getElementById('modalOk').textContent = okText;
-  modal.style.display = 'flex';
-  document.getElementById('modalCancel').onclick = ()=> modal.style.display='none';
-  document.getElementById('modalOk').onclick = ()=>{ if(onOk) onOk(); modal.style.display='none' };
-}
-
-function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])) }
-
-/* Create card */
-document.getElementById('btnCreate').onclick = ()=>{
-  modalShow(`
-    <label>單字：<input id="m_word" type="text"></label>
-    <label>解釋：<input id="m_meaning" type="text"></label>
-  `, '建立', ()=>{
-    const w = document.getElementById('m_word').value.trim();
-    const m = document.getElementById('m_meaning').value.trim();
-    if(!w||!m){ alert('單字與解釋不可為空'); return; }
-    const ex = cards.find(c=>c.word===w);
-    if(ex){ ex.meaning = m; alert('已更新既有單字的解釋（保留答對次數）'); }
-    else cards.push({word:w, meaning:m, correct:0, sentences:[]});
-    refresh();
-  });
+/* 新增單字 */
+document.getElementById('btnCreate').onclick=()=>{
+  const w=prompt('輸入單字:'); if(!w)return;
+  const m=prompt('輸入解釋:'); if(!m)return;
+  const ex=cards.find(c=>c.word===w);
+  if(ex)ex.meaning=m; else cards.push({word:w,meaning:m,correct:0,sentences:[]});
+  refresh();
+};
+/* 新增例句 */
+document.getElementById('btnSentence').onclick=()=>{
+  if(!cards.length){alert('沒有卡');return;}
+  const w=prompt('輸入既有單字:'); const card=cards.find(c=>c.word===w);
+  if(!card){alert('找不到單字');return;}
+  const s=prompt('輸入例句（以空白分詞）:'); if(!s)return;
+  const pos=parseInt(prompt('單字在句中的位置（1-based）:'),10);
+  if(!pos||pos<1){alert('位置錯誤');return;}
+  card.sentences.push({text:s,pos});
+  save(); refresh();
+};
+/* 匯出匯入清空 */
+document.getElementById('btnExport').onclick=()=>{
+  const blob=new Blob([JSON.stringify(cards,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='flashcards.json';a.click();
+};
+document.getElementById('btnImport').onclick=()=>{
+  const t=prompt('貼上JSON資料:'); if(!t)return;
+  try{cards=JSON.parse(t);save();refresh();}catch(e){alert('格式錯誤');}
+};
+document.getElementById('btnClear').onclick=()=>{
+  if(confirm('確定清空？')){cards=[];save();refresh();}
 };
 
-/* Add sentence */
-document.getElementById('btnSentence').onclick = ()=>{
-  if(!cards.length){ alert('目前沒有單字，請先建立'); return; }
-  const options = cards.map(c=>`<option value="${escapeHtml(c.word)}">${escapeHtml(c.word)}</option>`).join('');
-  modalShow(`
-    <label>單字（已存在）：<select id="m_wordsel">${options}</select></label>
-    <label>例句（以空白分詞）：<textarea id="m_sentence" rows="3"></textarea></label>
-    <label>位置（1-based token index）：<input id="m_pos" type="number" min="1" step="1"></label>
-  `, '新增例句', ()=>{
-    const w = document.getElementById('m_wordsel').value;
-    const s = document.getElementById('m_sentence').value.trim();
-    const pos = parseInt(document.getElementById('m_pos').value,10);
-    if(!w||!s||!pos){ alert('資料不完整'); return; }
-    const tokens = s.split(/\s+/).filter(Boolean);
-    if(pos<1 || pos>tokens.length){ alert('位置超出範圍，句子 token 數: '+tokens.length); return; }
-    const card = cards.find(c=>c.word===w);
-    card.sentences = card.sentences || [];
-    card.sentences.push({text:s,pos:pos});
-    saveCards(cards);
-    refresh();
-    alert('已新增例句');
-  });
-};
-
-/* Import / Export / Clear */
-document.getElementById('btnExport').onclick = ()=>{
-  const data = JSON.stringify(cards, null, 2);
-  const blob = new Blob([data],{type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'flashcards.json'; a.click();
-  URL.revokeObjectURL(url);
-};
-document.getElementById('btnImport').onclick = ()=>{
-  modalShow(`<label>貼上 JSON（取代目前資料）：<textarea id="m_json" rows="8"></textarea></label>`, '匯入', ()=>{
-    try{ const d = JSON.parse(document.getElementById('m_json').value); if(!Array.isArray(d)) throw 0; cards=d; saveCards(cards); refresh(); alert('匯入完成'); }catch(e){ alert('JSON 格式錯誤'); }
-  });
-};
-document.getElementById('btnClear').onclick = ()=>{
-  if(confirm('確定要清空所有卡片？此動作無法復原')){ cards=[]; saveCards(cards); refresh(); detailContent.innerHTML=''; }
-};
-
-/* Test logic — FIXED: persistent modal with internal loop */
-const testModal = document.getElementById('testModal');
-const qPrompt = document.getElementById('qPrompt');
-const qAnswer = document.getElementById('qAnswer');
-const submitAnswer = document.getElementById('submitAnswer');
-const skipAnswer = document.getElementById('skipAnswer');
-const endTestBtn = document.getElementById('endTestBtn');
-const testStatus = document.getElementById('testStatus');
-
-let currentQuestion = null;
+/* 測驗 */
+const testModal=document.getElementById('testModal');
+const qPrompt=document.getElementById('qPrompt');
+const qAnswer=document.getElementById('qAnswer');
+const testStatus=document.getElementById('testStatus');
+let current=null;
 
 function pickQuestion(){
-  if(!cards.length) return null;
-  const card = cards[Math.floor(Math.random()*cards.length)];
-  const hasSentence = (card.sentences && card.sentences.length>0);
-  const choices = [0,1].concat(hasSentence? [2]:[]);
-  const qtype = choices[Math.floor(Math.random()*choices.length)];
-  if(qtype===0){
-    return {type:0, card, prompt:`請輸入下列單字的解釋：\n${card.word}`, answer: card.meaning};
-  } else if(qtype===1){
-    return {type:1, card, prompt:`請輸入下列解釋的單字：\n${card.meaning}`, answer: card.word};
-  } else {
-    const s = card.sentences[Math.floor(Math.random()*card.sentences.length)];
-    const tokens = s.text.split(/\s+/).filter(Boolean);
-    const idx = s.pos - 1;
-    if(idx<0 || idx>=tokens.length) return {type:1, card, prompt:`(例句位置錯誤)\n請輸入下列解釋的單字：\n${card.meaning}`, answer: card.word};
-    const masked = tokens.slice(); masked[idx] = '***';
-    return {type:2, card, prompt:`請依下列例句，在 *** 位置補上正確的單字（必須完全相符）：\n${masked.join(' ')}`, answer: tokens[idx], sentence: s};
-  }
+  const card=cards[Math.floor(Math.random()*cards.length)];
+  const hasSent=card.sentences?.length;
+  const types=[0,1].concat(hasSent?[2]:[]);
+  const type=types[Math.floor(Math.random()*types.length)];
+  if(type===0)return{type,card,prompt:`請輸入下列單字的解釋：\n${card.word}`,answer:card.meaning};
+  if(type===1)return{type,card,prompt:`請輸入下列解釋的單字：\n${card.meaning}`,answer:card.word};
+  const s=card.sentences[Math.floor(Math.random()*card.sentences.length)];
+  const tokens=s.text.split(/\s+/); const idx=s.pos-1;
+  if(idx<0||idx>=tokens.length)return{type:1,card,prompt:`請輸入下列解釋的單字：\n${card.meaning}`,answer:card.word};
+  const masked=[...tokens];masked[idx]='***';
+  return{type,card,prompt:`請補上 *** 的單字：\n${masked.join(' ')}`,answer:tokens[idx],sentence:s};
 }
 
-function showTestModal(){
-  if(!cards.length){ alert('目前沒有卡片'); return; }
-  testModal.style.display = 'flex';
-  testStatus.textContent = '';
-  nextQuestion();
-}
-
-function hideTestModal(){
-  testModal.style.display = 'none';
-  qAnswer.value = '';
-  currentQuestion = null;
-}
-
-function nextQuestion(){
-  if(!cards.length){
-    alert('卡組已空，測驗結束');
-    hideTestModal();
-    refresh();
-    return;
-  }
-  currentQuestion = pickQuestion();
-  if(!currentQuestion){
-    alert('無題目可出'); hideTestModal(); return;
-  }
-  qPrompt.textContent = currentQuestion.prompt;
-  qAnswer.value = '';
+function nextQ(){
+  if(!cards.length){alert('卡組空');hideTest();return;}
+  current=pickQuestion();
+  qPrompt.textContent=current.prompt;
+  qAnswer.value='';
   qAnswer.focus();
-  testStatus.textContent = `剩餘卡片: ${cards.length}`;
+  testStatus.textContent=`剩餘卡:${cards.length}`;
 }
 
-submitAnswer.onclick = ()=>{
-  if(!currentQuestion) return;
-  const ans = qAnswer.value.trim();
-  if(ans.toLowerCase() === 'exit'){ hideTestModal(); return; }
-  if(ans === currentQuestion.answer){
-    currentQuestion.card.correct = (currentQuestion.card.correct||0) + 1;
-    saveCards(cards);
-    if(currentQuestion.card.correct >= MAX_CORRECT){
-      const idx = cards.indexOf(currentQuestion.card);
-      if(idx>=0){ cards.splice(idx,1); alert('答對達到上限，該卡已刪除：'+currentQuestion.card.word); }
-    } else {
-      alert('答對！ 答對次數 = '+currentQuestion.card.correct);
-    }
-    refresh();
-    // next question automatically
-    nextQuestion();
-  } else {
-    if(currentQuestion.type === 2){
-      alert('答錯。正確的例句為：\n' + currentQuestion.sentence.text);
-    } else {
-      alert('答錯。正確答案是：' + currentQuestion.answer);
-    }
-    refresh();
-    nextQuestion();
+function showTest(){if(!cards.length){alert('沒有卡');return;}testModal.style.display='flex';nextQ();}
+function hideTest(){testModal.style.display='none';}
+
+document.getElementById('btnTest').onclick=showTest;
+document.getElementById('endTestBtn').onclick=()=>{hideTest();};
+document.getElementById('skipAnswer').onclick=()=>{if(!current)return;alert('答案:'+current.answer);nextQ();};
+
+document.getElementById('submitAnswer').onclick=()=>{
+  if(!current)return;
+  const ans=qAnswer.value.trim();
+  if(ans===current.answer){
+    current.card.correct=(current.card.correct||0)+1;
+    if(current.card.correct>=MAX_CORRECT){cards.splice(cards.indexOf(current.card),1);alert('答對達上限，刪除該卡');}
+    else alert('答對！目前分數:'+current.card.correct);
+  }else{
+    /* 🔧 這裡是修改：答錯扣1，可為負 */
+    current.card.correct=(current.card.correct||0)-1;
+    if(current.type===2)alert('答錯。正確例句：\n'+current.sentence.text+'\n目前分數:'+current.card.correct);
+    else alert('答錯。正確答案：'+current.answer+'\n目前分數:'+current.card.correct);
   }
+  save();refresh();nextQ();
 };
 
-skipAnswer.onclick = ()=>{
-  if(!currentQuestion) return;
-  if(currentQuestion.type === 2){
-    alert('正確例句：\n' + currentQuestion.sentence.text);
-  } else {
-    alert('正確答案：' + currentQuestion.answer);
-  }
-  nextQuestion();
-};
-
-endTestBtn.onclick = ()=>{
-  if(confirm('結束測驗？')) hideTestModal();
-};
-
-document.getElementById('btnTest').onclick = showTestModal;
-
-/* init */
 refresh();
-
 </script>
 </body>
 </html>
